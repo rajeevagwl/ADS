@@ -1,0 +1,31 @@
+Student_ID,Class,Gender,Age,Days_Absent,MidDayMeal,Attendance_Date,Internet_Access,Mode_of_Transport,Parental_Income
+1068,8,Other,11,1,n,2025-04-10,Available,Bicycle,Above 20000
+1060,7th,M,thirteen,6,NO,2025/04/03,Unavailable,Walk,Above 20000
+1025,7th,male,,3,n,2025-04-01,Unavailable,Cycle,Above 20000
+1077,7th,M,11,6,Yes,2025-04-06,N,Walk,
+1007,7,F,12,4,yes,2025/04/03,Unavailable,Auto,Above 20000
+1093,6,Male,13,two,Y,2025-04-10,No,Cycle,5000-10000
+1015,Six,Male,thirteen,5,NO,2025-04-01,Unavailable,Bicycle,10000-20000
+1018,Six,Female,,6,Yes,2025/04/03,N,,
+1093,eight,male,11,0,No,2025-04-10,Y,Bicycle,<5000
+1074,6,Female,14,6,N,2025/04/03,No,Auto,
+1073,eight,Male,13,5,N,"April 5, 2025",No,Bus,
+1036,eight,male,14,6,No,07-04-2025,Unavailable,Bus,Above 20000
+1094,7th,FEMALE,12,5,n,"April 5, 2025",Unavailable,,<5000
+1025,eight,F,12,1,No,07-04-2025,Y,,<5000
+1099,7th,M,,4,n,2025/04/03,Y,,NA
+1099,8,Other,11,2,NO,2025-04-06,Yes,Auto,Above 20000
+1047,eight,male,12,4,n,07-04-2025,N,Auto,
+1078,eight,male,11,2,yes,2025-04-10,No,Bicycle,
+1014,eight,F,13,5,No,2025/04/03,N,,<5000
+1069,7,M,,5,N,07-04-2025,No,Cycle,<5000
+1067,7,Other,,6,NO,2025-04-01,No,walk,NA
+1037,7th,F,12,3,n,2025/04/03,Y,Walk,
+1029,Six,FEMALE,12,5,Y,2025-04-01,No,Auto,Above 20000
+1015,8,Other,11,5,n,"April 5, 2025",Y,Walk,<5000
+1063,8,F,thirteen,two,N,2025-04-01,Y,,<5000
+1079,eight,Other,14,6,n,2025-04-10,No,Bicycle,
+1026,Six,F,13,5,No,2025-04-06,Yes,Walk,Above 20000
+1092,6,Male,14,6,Yes,2025-04-01,Yes,,<5000
+1011,eight,FEMALE,thirteen,3,No,2025-04-10,N,Cycle,Above 20000
+1064,eight,Other,12,3,n,2025-04-10,Available,Walk,NA
