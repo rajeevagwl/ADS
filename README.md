@@ -1,2 +1,2 @@
 # ADS
-Applied Data Science: Statistics, Inference, and Machine Learning
+Applied Data Science: Framing Questions, Statistical Inference, Machine Learning and Data Systems
