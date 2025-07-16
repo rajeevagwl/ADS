@@ -1,0 +1,11 @@
+Household_ID,Item1_Worry,Item2_SkipMeal,Item3_PortionReduce,Item4_RunOut,Item5_Borrow
+HH01,2,1,1,0,1
+HH02,3,2,2,1,2
+HH03,1,1,1,0,0
+HH04,3,2,2,2,3
+HH05,2,2,1,1,1
+HH06,2,1,1,0,1
+HH07,3,3,3,2,2
+HH08,1,1,0,0,1
+HH09,2,2,2,1,1
+HH10,3,2,3,2,2
