@@ -1,0 +1,198 @@
+---
+title: "Chapter 5: R scripts"
+format: html
+editor: visual
+---
+
+## Load Required Libraries
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(pwr) #For power analysis
+```
+
+## Load the Dataset
+
+```{r}
+netflix_data <- read_csv("../data/netflix_india_users_5000.csv")
+```
+
+## Sampling Methods
+
+**1. Simple Random Sampling**
+
+```{r}
+# Set a seed for reproducibility
+set.seed(123)
+
+# Draw a simple random sample of 500 users
+simple_sample <- netflix_data %>%
+  sample_n(500)
+
+# View the first few rows
+head(simple_sample)
+```
+
+**2. Stratified Sampling**
+
+```{r}
+# Set a seed for reproducibility
+set.seed(123)
+
+# Stratify by region and subscription_plan and sample 10% from each stratum
+stratified_sample <- netflix_data %>%
+  group_by(Region, Subscription_Plan) %>%
+  sample_frac(size = 0.1) %>%
+  ungroup()
+
+# View sample
+head(stratified_sample)
+
+```
+
+**3. Cluster Sampling**
+
+```{r}
+# Read the dataset and create fake clusters
+set.seed(123)
+netflix_data_city <- read_csv("../data/netflix_india_users_5000.csv") %>%
+  mutate(City = sample(paste("City", 1:50), size = n(), replace = TRUE))
+
+# Randomly select 10 cities (clusters)
+selected_cities <- sample(unique(netflix_data_city$City), size = 10)
+
+# One-stage cluster sampling: include all users from selected cities
+cluster_sample <- netflix_data_city %>%
+  filter(City %in% selected_cities)
+
+# View sample
+head(cluster_sample)
+```
+
+**Exercise 5.1**
+
+```{r}
+# Read the dataset and create fake clusters
+set.seed(123)
+netflix_data_city <- read_csv("../data/netflix_india_users_5000.csv") %>%
+  mutate(City = sample(paste0("City_", 1:50), size = n(), replace = TRUE))
+
+# Stage 1: Randomly select 10 cities
+selected_cities <- sample(unique(netflix_data_city$City), size = 10)
+
+# Stage 2: Sample 20 users per selected city
+two_stage_sample <- netflix_data_city %>%
+  filter(City %in% selected_cities) %>%
+  group_by(City) %>%
+  sample_n(20) %>%
+  ungroup()
+
+# Summary table
+two_stage_sample %>%
+  count(City, name = "Users Sampled")
+```
+
+**4. Systematic Sampling**
+
+```{r}
+# Set seed for reproducibility
+set.seed(123)
+
+# Define sample size and interval
+n_total <- nrow(netflix_data)
+n_sample <- 500
+interval <- floor(n_total / n_sample)
+
+# Choose a random starting point between 1 and interval
+start <- sample(1:interval, 1)
+
+# Select every kth user
+systematic_sample <- netflix_data[seq(start, n_total, by = interval), ]
+```
+
+**Exercise 5.2 Starter Code**
+
+```{r}
+set.seed(123)
+
+# Create repeating day pattern
+days <- rep(c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"), length.out = 10000)
+
+# Simulate binge hours: weekend users watch more
+binge_hours <- case_when(
+  days %in% c("Sat", "Sun") ~ rnorm(10000, mean = 5, sd = 1)[1:10000],
+  TRUE ~ rnorm(10000, mean = 3, sd = 1)[1:10000]
+)
+
+# Create dataset
+users <- tibble(
+  user_id = 1:10000,
+  signup_day = days,
+  binge_hours = binge_hours
+)
+
+# Systematic sampling
+k <- 10
+start <- sample(1:k, 1)
+systematic_sample <- users %>%
+  slice(seq(from = start, to = n(), by = k))
+
+# Compare
+mean(users$binge_hours)
+mean(systematic_sample$binge_hours)
+table(systematic_sample$signup_day)
+
+```
+
+## Power Analysis
+
+```{r}
+# Power analysis for two independent groups
+pwr.t.test(d = 0.5,       # Effect size (Cohen's d)
+           power = 0.8,   # Desired power (80%)
+           sig.level = 0.05,  # Significance level (alpha)
+           type = "two.sample",
+           alternative = "two.sided")
+```
+
+**Exercise 5.4**
+
+```{r}
+# Mean watch times and standard deviation
+m1 <- 105
+m2 <- 100
+sd <- 20
+
+effect_size <- (m1 - m2)/sd  # d = 0.25
+
+sample_calc <- pwr.t.test(d = effect_size,
+                          sig.level = 0.05,
+                          power = 0.8,
+                          type = "two.sample",
+                          alternative = "two.sided")
+
+print(sample_calc)
+
+```
+
+## Example Power Curve
+
+```{r}
+# Parameters
+n <- 50           # sample size per group
+alpha <- 0.05     # significance level
+effect_sizes <- seq(0, 1.5, by = 0.05)  # range of effect sizes (Cohen's d)
+
+# Calculate power for each effect size
+powers <- sapply(effect_sizes, function(d) {
+  pwr.t.test(n = n, d = d, sig.level = alpha, type = "two.sample", alternative = "two.sided")$power
+})
+
+# Plot the power curve
+plot(effect_sizes, powers, type = "l", lwd = 2,
+     xlab = "Effect Size (Cohen's d)",
+     ylab = "Power",
+     main = paste("Power Curve for Two-Sample t-Test\n(n =", n, "per group, alpha =", alpha, ")"))
+abline(h = 0.8, col = "red", lty = 2)  # typical power threshold line
+```
