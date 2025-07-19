@@ -1,0 +1,396 @@
+---
+title: "Comprehensive Data Cleaning and Preprocessing Template"
+format: html
+editor: visual
+---
+
+## Load Required Libraries
+
+```{r}
+# Load essential libraries
+library(tidyverse)
+library(janitor)
+library(naniar)    # For missing data visualization
+library(caret)     # For preprocessing
+library(ggplot2)
+library(corrplot)  # For correlation matrix
+library(forcats)   # For factor management
+```
+
+## Load the Dataset
+
+```{r}
+# Read in your dataset
+food_orders <- read_csv("../data/food_delivery_orders_5000_records.csv")
+```
+
+## Initial Data Exploration
+
+```{r}
+# Preview first few rows
+head(data)
+
+# Summary of the data
+summary(data)
+```
+
+## Handling Missing Data
+
+### Check for Missing Data
+
+```{r}
+# Number of missing values per column
+colSums(is.na(food_orders))
+
+# Visualize missing data
+vis_miss(food_orders)
+```
+
+### Imputation Examples
+
+```{r}
+# MCAR: Remove rows (example: with missing Order_Amount)
+food_orders_clean <- food_orders %>% filter(!is.na(Order_Amount))
+
+# Impute numerical variable (example: Order_Amount) with mean
+food_orders <- food_orders %>%
+  mutate(Order_Amount = ifelse(is.na(Order_Amount), mean(Order_Amount, na.rm = TRUE), Order_Amount))
+
+# Impute numerical variable (example: Order_Amount) with median
+food_orders <- food_orders %>%
+  mutate(Order_Amount = ifelse(is.na(Order_Amount), median(Order_Amount, na.rm = TRUE), Order_Amount))
+
+# kNN imputation
+library(VIM)
+food_orders <- kNN(food_orders, variable = "Order_Amount", k = 5)
+
+# Regression imputation
+model <- lm(Order_Amount ~ Delivery_Time_Minutes + Distance_km, data = food_orders, na.action = na.exclude)
+predicted <- predict(model, newdata = food_orders)
+food_orders$Order_Amount[is.na(food_orders$Order_Amount)] <- predicted[is.na(food_orders$Order_Amount)]
+
+# Impute categorical variable (example: Payment_Mode) with mode
+food_orders <- food_orders %>%
+  mutate(Payment_Mode = ifelse(is.na(Payment_Mode), mode(Payment_Mode, na.rm = TRUE), Payment_Mode))
+
+# Impute categorical variable (example: Food_Category) with 'Unknown'
+food_orders <- food_orders %>%
+  mutate(Food_Category = ifelse(is.na(Food_Category), 'Unknown', Food_Category))
+
+# MNAR: Remove the column (example: Promo_Used)
+food_orders <- food_orders %>% select(-Promo_Used)
+```
+
+## Detecting and Handling Outliers
+
+### Boxplot Method
+
+```{r warning=FALSE}
+food_orders %>% ggplot(aes(x = Customer_Rating)) +
+  geom_boxplot() +
+  theme_classic() +
+  theme(axis.text.y = element_blank())
+```
+
+### IQR Method
+
+```{r}
+Q1 <- quantile(food_orders$Customer_Rating, 0.25, na.rm = TRUE)
+Q3 <- quantile(food_orders$Customer_Rating, 0.75, na.rm = TRUE)
+IQR <- Q3 - Q1
+
+lower_limit <- Q1 - 1.5 * IQR
+upper_limit <- Q3 + 1.5 * IQR
+
+outliers <- food_orders %>% 
+  filter(Customer_Rating < lower_limit | Customer_Rating > upper_limit)
+
+```
+
+### Remove or Cap Outliers
+
+```{r}
+# Remove outliers
+food_orders_rem <- food_orders %>% 
+  filter(Customer_Rating >= lower_limit & Customer_Rating <= upper_limit)
+
+# Cap outliers
+food_orders_cap <- food_orders %>%
+  mutate(Customer_Rating = ifelse(Customer_Rating < lower_bound, lower_bound,
+                         ifelse(Customer_Rating > upper_bound, upper_bound, Customer_Rating)))
+
+# Check if the outlier is capped or not
+food_orders_cap %>% filter(Customer_Rating == 10)
+```
+
+### Flagging Outliers
+
+**Food Order Example**
+
+```{r}
+food_orders <- food_orders %>% 
+  mutate(Outlier_Flag = ifelse(Order_Amount > upper_limit | Order_Amount < lower_limit, 1, 0))
+```
+
+## Typos and inconsistencies
+
+```{r}
+food_orders  %>% unique(Restaurant_Name)
+food_orders  %>% table(Restaurant_Name)
+
+# Convert to Lowercase / Uppercase
+food_orders <- food_orders %>% 
+  mutate(Restaurant_Name = tolower(Restaurant_Name))
+
+# Remove leading/trailing/multiple spaces
+food_orders <- food_orders %>%
+  mutate(Restaurant_Name = str_squish(Restaurant_Name))
+
+# Recoding
+food_orders <- food_orders %>% 
+  mutate(Restaurant_Name = case_when(
+    str_detect(Restaurant_Name, regex("biryani.*house|biriyani.*hause|biryanihouse", ignore_case = TRUE)) ~ "Biryani House",
+    str_detect(Restaurant_Name, regex("pizza.*hub", ignore_case = TRUE)) ~ "Pizza Hub",
+    str_detect(Restaurant_Name, regex("burger.*town", ignore_case = TRUE)) ~ "Burger Town",
+    TRUE ~ Restaurant_Name
+  ))
+
+# Fuzzy string matching example: Find similar strings to 'Biryani House'
+library(stringdist)
+stringdist::stringdistmatrix(c("Biryani House", unique(food_orders$Restaurant_Name)), method = "jw")
+```
+
+## Unit Mismatches
+
+```{r}
+food_orders %>% summary(Delivery_Time_Minutes)
+
+food_orders %>% ggplot(aes(x = Delivery_Time_Minutes)) +
+  geom_boxplot()
+
+food_orders <- food_orders %>%
+  mutate(Unit_Flag = ifelse(Delivery_Time_Minutes < 5 | Delivery_Time_Minutes > 120, 1, 0))
+```
+
+## Handling Duplicates
+
+```{r}
+# Lists orders that appear more than once
+food_orders %>% 
+  group_by(Order_ID) %>%
+  filter(n() > 1)
+
+# Flag duplicates without immediate removal
+food_orders <- food_orders %>% 
+  mutate(Duplicate_Flag = duplicated(Order_ID))
+
+# Remove fully duplicate rows
+food_orders <- food_orders %>% 
+  distinct()
+
+```
+
+## Data Sparsity
+
+```{r}
+# Check proportion of zero or NA values in each column:
+food_orders %>% 
+  summarise(across(everything(), ~ mean(. == 0 | is.na(.))))
+```
+
+## Imbalanced Data
+
+**Detecting Imbalanced Data**
+
+```{r}
+table(food_orders$Customer_Rating)
+
+food_orders %>% ggplot(aes(x = factor(Customer_Rating))) +
+  geom_bar(fill = "skyblue") +
+  labs(title = "Distribution of Customer Ratings", x = "Rating")
+```
+
+**Handling Imbalanced Data**
+
+```{r}
+# Recode Customer_Rating to binary
+food_orders <- food_orders %>%
+  mutate(Rating_Binary = factor(ifelse(Customer_Rating <= 3, "Bad", "Good")))
+
+# Duplicate minority class cases
+library(ROSE)
+balanced_over <- ovun.sample(Rating_Binary ~ ., data = food_orders, method = "over", N = 5000)$data
+table(balanced_over$Rating_Binary)
+
+# Undersampling the majority class
+balanced_under <- ovun.sample(Rating_Binary ~ ., data = food_orders, method = "under", N = 3000)$data
+table(balanced_under$Rating_Binary)
+
+# SMOTE
+library(smotefamily)
+
+# Drop rows with any missing values
+smote_input <- food_orders %>%
+  select(-Customer_Rating) %>%  # Optional: drop original rating
+  drop_na() 
+
+# SMOTE requires numeric predictors. Let's convert all character/factor vars to numeric
+# Split predictors and target
+X <- smote_input %>% select(-Rating_Binary) |>
+  mutate(across(where(is.character), ~ as.numeric(as.factor(.))),
+         across(where(is.factor), ~ as.numeric(as.factor(.))))
+
+y <- smote_input$Rating_Binary
+
+# Apply SMOTE for binary target
+smote_result <- SMOTE(X = X, target = y, K = 5, dup_size = 2)
+
+# Get the balanced data
+balanced_data <- smote_result$data
+balanced_data$class <- factor(balanced_data$class, labels = levels(y))  # Restore original labels
+
+# View the new class distribution
+table(balanced_data$class)
+```
+
+## Multicollinearity Check
+
+```{r}
+
+```
+
+## Feature Engineering
+
+### Recoding, Encoding and Transforming Variables
+
+```{r}
+# Recoding
+food_orders <- food_orders %>% 
+  mutate(Promo_Used = ifelse(Promo_Used == "Yes", 1, 0))
+
+# Creating new derived variables
+food_orders <- food_orders %>% 
+  mutate(Fast_Delivery = ifelse(Delivery_Time_Minutes <= 30, "Fast", "Slow"))
+
+# One-Hot encoding 
+library(fastDummies)
+food_orders <- dummy_cols(food_orders, select_columns = "Payment_Mode", remove_first_dummy = TRUE)
+
+# Label encoding
+food_orders <- food_orders %>%
+  mutate(Food_Category_Code = as.numeric(as.factor(Food_Category)))
+
+# Date-based features
+food_orders <- food_orders %>%
+  mutate(Order_Day = weekdays(as.Date(Order_Date, format = "%m/%d/%Y")),
+         Order_Month = months(as.Date(Order_Date, format = "%m/%d/%Y")))
+
+# Interaction features
+food_orders <- food_orders %>%
+  mutate(Amount_per_Minute = Order_Amount / Delivery_Time_Minutes)
+```
+
+### High Cardinality
+
+```{r}
+# Grouping rare categories
+food_orders <- food_orders %>%
+  mutate(Restaurant_Grouped = fct_lump(factor(Restaurant_Name), n = 10))
+
+# Frequency encoding
+food_orders <- food_orders %>%
+  group_by(Restaurant_Name) %>%
+  mutate(Restaurant_Freq = n()) %>%
+  ungroup()
+```
+
+## Data Restructuring
+
+### Merging Datasets (Joins)
+
+```{r}
+# Create a new promotions dataset
+promos <- data.frame(
+  Order_ID = c(101, 205, 305),
+  Promo_Discount = c(50, 30, 20)
+)
+
+# Left join
+food_orders <- food_orders %>%
+  left_join(promos, by = "Order_ID")
+```
+
+### Reshaping Data
+
+```{r}
+delivery_data_wide <- tibble(
+  Customer_ID = c("C1", "C2", "C3"),
+  Week1 = c(5, 3, 8),
+  Week2 = c(6, 4, 7),
+  Week3 = c(7, 2, 6)
+)
+
+delivery_data_wide
+
+# Pivot longer
+delivery_data_long <- delivery_data_wide %>%
+  pivot_longer(cols = starts_with("Week"),
+               names_to = "Week",
+               values_to = "Orders")
+
+delivery_data_long
+
+# Pivot wider
+delivery_data_wide_again <- delivery_data_long %>%
+  pivot_wider(names_from = Week,
+              values_from = Orders)
+
+delivery_data_wide_again
+
+```
+
+### Stacking/Unstacking
+
+```{r}
+jan_orders <- food_orders %>% filter(month(as.Date(Order_Date, format = "%m/%d/%Y")) == 1)
+feb_orders <- food_orders %>% filter(month(as.Date(Order_Date, format = "%m/%d/%Y")) == 2)
+
+stacked_orders <- bind_rows(jan_orders, feb_orders)
+```
+
+## Standardization / Normalization
+
+```{r}
+# Simulated dataset with relevant columns
+food_data <- data.frame(
+  delivery_time_min = c(30, 25, 40, 35, 20),
+  delivery_distance_km = c(3.2, 2.5, 4.1, 3.8, 2.0)
+)
+
+# Standardize using scale()
+standardized_data <- scale(food_data)
+
+# Convert to data frame for readability
+standardized_df <- as.data.frame(standardized_data)
+
+standardized_df
+
+# Normalization
+food_orders <- food_orders %>%
+  mutate(Order_Amount_Norm = (Order_Amount - min(Order_Amount, na.rm = TRUE)) / 
+                             (max(Order_Amount, na.rm = TRUE) - min(Order_Amount, na.rm = TRUE)))
+
+# Preview normalized values
+food_orders %>%
+  select(Order_Amount, Order_Amount_Norm) %>%
+  head()
+```
+
+## Final Clean Dataset
+
+```{r}
+glimpse(food_orders)
+summary(food_orders)
+```
+
+## 
