@@ -1,0 +1,222 @@
+---
+title: "Exploratory Data Analysis"
+format: html
+editor: visual
+---
+
+## Load Libraries and Data
+
+```{r}
+library(tidyverse)
+
+# Load the dataset
+food_data <- read_csv("../data/food_delivery_clean.csv")
+
+
+# Fixing Inconsistent and Incorrect Data Types
+food_data <- food_data %>%
+  mutate(Promo_Used = as.factor(Promo_Used),
+         Restaurant_Name = as.factor(Restaurant_Name),
+         Food_Category = as.factor(Food_Category),
+         Payment_Mode = as.factor(Payment_Mode),
+         Fast_Delivery = as.factor(Fast_Delivery),
+         Delivery_Area = as.factor(Delivery_Area),
+         Order_Date = as.Date(Order_Date, format = "%m/%d/%Y")) 
+```
+
+## Getting to Know Your Data
+
+```{r}
+# Dataset structure and summary
+dim(food_data)              # Rows and columns
+glimpse(food_data)          # Variable types
+summary(food_data)          # Quick statistical summary
+colSums(is.na(food_data))   # Check for any missing values
+
+# --- Forming early hypotheses ---
+
+# 1. Which food types dominate the orders?
+food_data %>%
+  count(Food_Category, sort = TRUE)
+
+# 2. What is the range and central tendency of Order Amount?
+summary(food_data$Order_Amount)
+
+# 3. Which customers consistently rate poorly?
+food_data %>%
+  group_by(Customer_ID) %>%
+  summarise(avg_rating = mean(Customer_Rating, na.rm = TRUE),
+            n_orders = n()) %>%
+  arrange(avg_rating)
+
+# 4. Most and least generous orders
+food_data %>%
+  arrange(desc(Order_Amount)) %>%
+  select(Order_ID, Customer_ID, Order_Amount) %>%
+  head()
+
+# 5. Explore promo usage
+food_data %>%
+  count(Promo_Used)
+```
+
+## Visualizing Distributions and Relationships
+
+### Univariate
+
+```{r}
+#Histogram
+ggplot(food_data, aes(x = Order_Amount)) +
+  geom_histogram(bins = 10, fill = "steelblue", color = "white") +
+  labs(title = "Distribution of Order Amounts",
+       x = "Order Amount (INR)",
+       y = "Number of Orders") +
+  theme_bw()
+
+#Boxplot
+ggplot(food_data, aes(y = Delivery_Time_Minutes)) +
+  geom_boxplot(fill = "orange") +
+  labs(title = "Boxplot of Delivery Time",
+       y = "Delivery Time (Minutes)") +
+  theme(axis.text.x = element_blank()) +
+  theme_minimal()
+
+# Bar plot
+food_data %>%
+  filter(!is.na(Food_Category)) %>%
+  ggplot(aes(x = fct_infreq(Food_Category))) +
+  geom_bar(fill = "darkseagreen") +
+  coord_flip() +
+  labs(title = "Most Common Food Categories",
+       x = "Food Category",
+       y = "Number of Orders") +
+  theme_bw()
+```
+
+### Bivariate
+
+```{r}
+# Scatter plot
+ggplot(food_data, aes(x = Delivery_Time_Minutes, y = Customer_Rating)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "Scatter Plot: Delivery Time vs Customer Rating",
+       x = "Delivery Time (Minutes)", y = "Customer Rating") 
+
+# Box plot
+ggplot(food_data, aes(x = Promo_Used, y = Order_Amount)) +
+  geom_boxplot(fill = "skyblue") +
+  labs(title = "Boxplot: Order Amount by Promo Code Usage",
+       x = "Promo Code Used", y = "Order Amount (INR)") 
+
+# Grouped bar plot
+ggplot(food_data, aes(x = Food_Category, fill = Promo_Used)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Food Category Preferences by Promo Usage",
+       x = "Food Category", y = "Number of Orders") 
+
+# Stacked bar plot
+ggplot(food_data, aes(x = Delivery_Area, fill = Payment_Mode)) +
+  geom_bar(position = "stack") +
+  labs(title = "Payment Mode Distribution Across Delivery Areas",
+       x = "Delivery Area", y = "Number of Orders") 
+```
+
+### Multivariate
+
+```{r}
+food_data %>%
+  filter(!is.na(Food_Category)) %>%
+  ggplot(aes(x = Customer_Rating, y = Order_Amount, color = Food_Category)) +     
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    title = "Order Amount vs Customer Rating by Food Category",
+    x = "Customer Rating",
+    y = "Order Amount (INR)"
+  ) 
+
+food_data %>%
+  filter(!is.na(Food_Category)) %>%
+  ggplot(aes(x = Customer_Rating, y = Order_Amount)) +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_wrap(~ Food_Category) +
+  labs(title = "Order Amount vs Rating, Faceted by Food Category",
+       x = "Customer Rating", y = "Order Amount (INR)"
+  ) 
+```
+
+## Exercise 7.2
+
+```{r warning=FALSE}
+ggplot(food_data, aes(x = Delivery_Area, y = Customer_Rating, fill = Delivery_Area)) +
+  geom_boxplot() +
+  labs(title = "Customer Rating Distribution by Delivery Area",
+       x = "Delivery Area", y = "Customer Rating") 
+
+food_data %>%
+  group_by(Delivery_Area) %>%
+  summarise(
+    mean_order_amount = mean(Order_Amount, na.rm = TRUE),
+    median_order_amount = median(Order_Amount, na.rm = TRUE),
+    mean_rating = mean(Customer_Rating, na.rm = TRUE),
+    n = n()
+  )
+
+ggplot(food_data, aes(x = Order_Amount, y = Customer_Rating)) +
+  geom_point(alpha = 0.6, color = "darkblue") +
+  geom_smooth(method = "loess", se = FALSE, color = "red") +
+  facet_wrap(~ Delivery_Area) +
+  labs(title = "Order Amount vs Customer Rating by Delivery Area")
+
+```
+
+## EDA Pitfalls to Avoid 
+
+```{r}
+# Seeing Patterns That Aren’t Really There
+food_data %>%
+  mutate(Day_of_Week = weekdays(Order_Date)) %>%
+  group_by(Day_of_Week) %>%
+  summarise(mean_amount = mean(Order_Amount, na.rm = TRUE),
+            count = n()) %>%
+  arrange(desc(mean_amount))
+
+# Simpson's Paradox
+orders <- read_csv("../data/simpsons_paradox_food_delivery_corrected.csv")
+
+# Mean rating by subgroup (Food Category × Delivery Zone)
+orders %>%
+  group_by(Food_Category, Delivery_Zone) %>%
+  summarise(mean_rating = mean(Customer_Rating), count = n())
+
+# Aggregated mean rating (ignoring Delivery Zone)
+orders %>%
+  group_by(Food_Category) %>%
+  summarise(overall_mean_rating = mean(Customer_Rating), count = n())
+
+
+# Plot subgroup and aggregated trends using facet and overlay
+ggplot(orders, aes(x = Food_Category, y = Customer_Rating, color = Delivery_Zone)) +
+  geom_jitter(width = 0.2, alpha = 0.5) +
+  stat_summary(fun = mean, geom = "point", shape = 18, size = 4, color = "black") +
+  stat_summary(fun = mean, geom = "line", aes(group = Delivery_Zone), size = 1.2) +
+  scale_color_manual(values = c("Urban" = "#1F78B4", "Rural" = "#6BAED6")) +  # darker and lighter blue
+  facet_wrap(~Delivery_Zone, ncol = 2) +
+  labs(
+    title = "Simpson's Paradox in Customer Ratings",
+    subtitle = "Biryani is better in each zone, but Pizza appears better when zones are ignored",
+    x = "Food Category",
+    y = "Customer Rating"
+  ) +
+  theme_minimal()
+
+
+# Misleading bar chart (y-axis starts at 2.5)
+ggplot(food_data, aes(x = Delivery_Area, y = Customer_Rating)) +
+  stat_summary(fun = mean, geom = "bar", fill = "steelblue") +
+  coord_cartesian(ylim = c(2.5, 4)) +  # WARNING: Misleading
+  ggtitle("Average Delivery Time (Misleading Y-Axis)")
+
+```
+
+### 
