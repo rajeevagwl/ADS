@@ -170,7 +170,7 @@ ggplot(food_data, aes(x = Order_Amount, y = Customer_Rating)) +
 
 ```
 
-## EDA Pitfalls to Avoid 
+## EDA Pitfalls to Avoid
 
 ```{r}
 # Seeing Patterns That Aren’t Really There
@@ -182,7 +182,7 @@ food_data %>%
   arrange(desc(mean_amount))
 
 # Simpson's Paradox
-orders <- read_csv("../data/simpsons_paradox_food_delivery_corrected.csv")
+orders <- read_csv("../data/simpsons_paradox_food_delivery.csv")
 
 # Mean rating by subgroup (Food Category × Delivery Zone)
 orders %>%
