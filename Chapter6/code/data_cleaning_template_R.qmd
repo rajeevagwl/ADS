@@ -190,6 +190,19 @@ food_orders <- food_orders %>%
 
 ```
 
+## **Fixing Inconsistent and Incorrect Data Types**
+
+```{r}
+# Example snippet demonstrating type conversions 
+food_orders <- food_orders %>%
+  mutate(
+    Order_ID = as.integer(Order_ID),
+    Order_Date = as.Date(Order_Date, format = "%m/%d/%Y"),
+    Food_Category = as.factor(Food_Category),
+    Order_Amount = as.numeric(Order_Amount)
+  )
+```
+
 ## Data Sparsity
 
 ```{r}
