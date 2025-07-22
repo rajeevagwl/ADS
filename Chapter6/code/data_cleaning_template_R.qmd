@@ -406,4 +406,23 @@ glimpse(food_orders)
 summary(food_orders)
 ```
 
-## 
+## Exercise 6.2
+
+```{r}
+visits <- read_csv("../data/patient_visits.csv")
+lookup <- read_csv("../data/icd_lookup.csv")
+
+visits_joined <- visits %>% 
+  left_join(lookup, by = "icd_code")
+
+print(visits_joined)
+
+# Missing ICD codes in the look up table
+missing_codes <- visits %>% 
+  anti_join(lookup, by = "icd_code")
+
+if (nrow(missing_codes) > 0) {
+  warning("Some ICD codes were not found in the lookup table.")
+}
+
+```
