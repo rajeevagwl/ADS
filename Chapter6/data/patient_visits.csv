@@ -1,0 +1,6 @@
+patient_id,visit_date,icd_code,provider,visit_reason
+P001,2024-11-20,A09.0,Dr. Sharma,Fever and diarrhea
+P002,2024-11-22,E11.9,Dr. Khan,Diabetes follow-up
+P003,2024-12-01,J06.9,Dr. Mehta,Cold and cough
+P004,2024-12-03,I10,Dr. Kapoor,Blood pressure check
+P005,2024-12-05,M54.5,Dr. Rao,Back pain
