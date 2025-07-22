@@ -425,4 +425,13 @@ if (nrow(missing_codes) > 0) {
   warning("Some ICD codes were not found in the lookup table.")
 }
 
+# Include only priority ICD codes
+priority_icds <- read_csv("../data/icd_lookup_v2.csv")
+filtered_data <- visits %>% 
+  filter(icd_code %in% priority_icds$icd_code)
+
+# Exclude priority ICD codes
+excluded_data <- visits %>% 
+  filter(!icd_code %in% priority_icds$icd_code)
+
 ```
