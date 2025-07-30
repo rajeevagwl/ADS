@@ -1,2 +1,2 @@
 # ADS
-Applied Data Science: research Methods, Statistical Inference, Machine Learning and AI
+Applied Data Science: Research Methods, Statistical Inference, Machine Learning and AI
