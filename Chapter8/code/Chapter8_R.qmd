@@ -1,0 +1,169 @@
+---
+title: "Chapter 8"
+format: html
+editor: visual
+---
+
+## Load Libraries and Data
+
+```{r}
+library(tidyverse)
+
+# Load the dataset
+smk <- read_csv("../data/smoking_survey.csv")
+```
+
+## Correlations
+
+```{r}
+smk_numeric <- smk %>%
+  mutate(
+    Smoker = if_else(Smoker == "Yes", 1, 0),
+    Chronic_Cough = if_else(Chronic_Cough == "Yes", 1, 0),
+    Respiratory_Issue = if_else(Respiratory_Issue == "Yes", 1, 0),
+    Alcohol_Use = if_else(Alcohol_Use == "Yes", 1, 0)
+  ) %>%
+  select(Smoker, Chronic_Cough, Respiratory_Issue, Alcohol_Use)
+
+cor_matrix <- cor(smk_numeric)
+print(cor_matrix)
+
+cor.test(smk_numeric$Smoker, smk_numeric$Respiratory_Issue)
+
+```
+
+## Sampling Distribution of a Correlation
+
+```{r}
+set.seed(41)
+
+# Simulate 5000 correlations under the null hypothesis (no association)
+sampling_dist <- tibble(
+  sample_id = 1:5000,
+  r = replicate(5000, {
+    x <- rnorm(30)
+    y <- rnorm(30)
+    cor(x, y)
+  }))
+
+
+# Plot histogram
+ggplot(sampling_dist, aes(x = r)) +
+  geom_histogram(bins = 50, fill = "#A8DADC", color = "white") +
+  geom_vline(xintercept = 0.63, linetype = "dashed", color = "red") +
+  labs(title = "Sampling Distribution of r under the Null Hypothesis (Ho: ρ = 0)",
+       subtitle = paste0("n = 30", ", simulations = 5000"),
+       x = "Sample Correlation (r)",
+       y = "Count") + theme_bw()
+
+```
+
+### Exercise 8.3: Estimating a p-value from a t-distribution
+
+```{r}
+# Set values
+r <- -0.4
+n <- 30
+
+# Calculate test statistic for correlation
+t_stat <- r * sqrt((n - 2) / (1 - r^2))
+
+# Degrees of freedom
+df <- n - 2
+
+# Calculate two-sided p-value
+p_val <- 2 * pt(abs(t_stat), df = df, lower.tail = FALSE)
+
+# Create t-distribution data
+t_dist <- tibble(
+  t = seq(-4, 4, length.out = 1000),
+  density = dt(t, df)
+) %>%
+  mutate(p_region = case_when(
+    t <= -abs(t_stat) ~ "Lower tail",
+    t >= abs(t_stat) ~ "Upper tail",
+    TRUE ~ "Middle"
+  ))
+
+# Plot the t-distribution and shade p-value area
+ggplot(t_dist, aes(x = t, y = density)) +
+  geom_line(color = "gray40", size = 1) +
+  geom_area(data = filter(t_dist, p_region != "Middle"), aes(fill = p_region)) +
+  geom_vline(xintercept = c(-t_stat, t_stat), linetype = "dashed") +
+  labs(
+    title = "Two-tailed p-value for a t-distribution",
+    subtitle = paste0("t = ", round(t_stat, 2),
+                      ", df = ", df,
+                      ", p = ", signif(p_val, 2)),
+    x = "Test Statistic (t)", y = "Density"
+  ) +
+  theme_bw()
+```
+
+### One-sided visualization
+
+```{r}
+# Plot the t-distribution and shade p-value area
+ggplot(t_dist, aes(x = t, y = density)) +
+  geom_line(color = "gray40", size = 1) +
+  geom_area(data = filter(t_dist, p_region == "Lower tail"),
+            aes(fill = p_region)) +
+  geom_vline(xintercept = c(-t_stat, t_stat), linetype = "dashed") +
+  labs(
+    title = "Two-tailed p-value for a t-distribution",
+    subtitle = paste0("t = ", round(t_stat, 2), ", df = ", df),
+    x = "Test Statistic (t)", y = "Density"
+  ) + theme_bw()
+```
+
+## Confidence Interval
+
+```{r warning=FALSE}
+# Simulate a large population where true correlation is 0.63
+set.seed(123)
+N <- 10000
+true_r <- 0.63
+
+# Simulate smoking scores and respiratory scores
+smoking <- rnorm(N)
+resp_issues <- true_r * smoking + sqrt(1 - true_r^2) * rnorm(N)
+
+population <- tibble(smoking = smoking, resp_issues = resp_issues)
+
+# Function to compute CI for correlation using normal approximation
+compute_ci <- function(data) {
+  r <- cor(data$smoking, data$resp_issues)
+  n <- nrow(data)
+  se <- sqrt((1 - r^2) / (n - 2))  # Standard error of r
+  z_star <- 1.96  # For 95% CI
+  lower <- r - z_star * se
+  upper <- r + z_star * se
+  contains_true <- (lower <= true_r & upper >= true_r)
+  
+  tibble(r = r, lower = lower, upper = upper, contains_true = contains_true)
+}
+
+# Generate 100 samples of size 30 each, compute CIs
+samples <- map_dfr(1:100, ~{
+  sample_data <- sample_n(population, 30)
+  compute_ci(sample_data) %>% mutate(sample_id = .x)
+})
+
+# Plot confidence intervals
+samples %>%
+  ggplot(aes(x = sample_id, y = r)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = lower, ymax = upper,linetype = contains_true),
+                width = 0.2) +
+  geom_hline(yintercept = true_r, linetype = "dashed", color = "gray30") +
+  scale_linetype_manual(values = c("dotted", "solid"),
+                        labels = c("Missed", "Captured"),
+                        name = "CI Status") +
+  labs(title = "95% Confidence Intervals for Correlation (100 Samples)",
+       subtitle = "True correlation = 0.63 shown as dashed line",
+       x = "Sample Number", y = "Sample Correlation (r)") +
+  theme_minimal()
+
+```
+
+## 
