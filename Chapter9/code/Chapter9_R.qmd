@@ -1,0 +1,211 @@
+---
+title: "Chapter 9"
+format: html
+editor: visual
+---
+
+## Load Libraries and Data
+
+```{r}
+library(tidyverse)
+
+
+```
+
+## Visualize the normal distribution vs. the sampling distribution of sample mean
+
+```{r}
+# Set seed for reproducibility
+set.seed(123)
+
+# Parameters
+mu <- 120       # True population mean
+sigma <- 10     # True population standard deviation
+n <- 10         # Sample size
+n_samples <- 10000  # Number of repeated samples
+
+# Simulate population data (just for reference)
+population <- tibble(bp = rnorm(100000, mean = mu, sd = sigma),
+                     distribution = "Population")
+
+# Simulate sampling distribution of the mean
+sample_means <- replicate(n_samples, {mean(rnorm(n, mean = mu, sd = sigma))})
+
+sampling_distribution <- tibble(bp = sample_means,
+                                distribution = "Sampling Distribution of Mean")
+
+# Combine both distributions
+combined <- bind_rows(population, sampling_distribution)
+
+# Plot
+ggplot(combined, aes(x = bp, linetype = distribution)) +
+  geom_density() +
+  geom_vline(xintercept = 120, linetype = "dashed") +
+  scale_x_continuous(breaks = c(100, 110, 120, 130, 140)) +
+  labs(
+    title = "Population vs. Sampling Distribution of the Sample Mean",
+    x = "Systolic Blood Pressure (mm Hg)", y = "Density"
+  ) + theme_bw()
+
+```
+
+```         
+```
+
+## Visualize the t-distribution vs. the z-distribution
+
+```{r}
+# Create a sequence of x-values
+x_vals <- seq(-4, 4, length.out = 1000)
+
+# Create a tibble comparing z and t (df = 9)
+dist_df <- tibble(
+  x = rep(x_vals, 2),
+  distribution = rep(c("z (standard normal)", "t (df = 9)"), each = length(x_vals)),
+  density = c(dnorm(x_vals), dt(x_vals, df = 9))
+)
+
+# Plot
+ggplot(dist_df, aes(x = x, y = density, color = distribution, linetype = distribution)) +
+  geom_line() +
+  scale_color_manual(values = c("gray40", "black")) +
+  labs(
+    title = "t-distribution vs. z-distribution",
+    subtitle = "With df = 9, the t-distribution is flatter and has heavier tails",
+    x = "Test Statistic Value",
+    y = "Density",
+    color = "Distribution",
+    linetype = "Distribution"
+  ) + theme_bw()
+
+```
+
+## One-Sample t-test Example
+
+```{r}
+# Data
+bp <- c(125, 122, 130, 128, 124, 127, 126, 129, 131, 128)
+
+# Parameters
+n <- length(bp)
+df <- n - 1
+xbar <- mean(bp)
+s <- sd(bp)
+mu0 <- 120
+alpha <- 0.05
+
+# t statistic
+t_stat <- (xbar - mu0) / (s / sqrt(n))
+
+# Method 1: Critical value approach (right-tailed)
+t_crit <- qt(1 - alpha, df)
+ifelse(t_stat > t_crit, "Reject H0", "Fail to Reject H0")
+
+# Method 2: p-value approach (right-tailed)
+p_value <- pt(t_stat, df, lower.tail = FALSE)
+ifelse(p_value < alpha, "Reject H0", "Fail to Reject H0")
+
+#One-sample t-test
+t.test(bp, mu = 120, alternative = "greater")
+```
+
+## Paired t-test Example
+
+```{r}
+# Arjun's BP data
+before <- c(125, 122, 130, 128, 124, 127, 126, 129, 131, 128)
+after  <- c(124, 125, 124, 127, 126, 126, 121, 123, 132, 124)
+
+# Paired t-test
+t.test(before, after, paired = TRUE, alternative = "greater")
+```
+
+### Exercise 9.1
+
+**Part A: One-Sample t-Test CI**
+
+```{r}
+# Arjun's BP readings
+bp <- c(125, 122, 130, 128, 124, 127, 126, 129, 131, 128)
+n <- length(bp)
+
+# Sample mean and standard deviation
+x_bar <- mean(bp)
+s <- sd(bp)
+
+# Degrees of freedom
+df <- n - 1
+
+# Critical t-value for 95% CI
+t_star <- qt(0.975, df)  # two-sided
+
+# Margin of error
+ME <- t_star * s / sqrt(n)
+
+# Confidence interval
+CI_lower <- x_bar - ME
+CI_upper <- x_bar + ME
+
+x_bar; s; ME
+CI_lower; CI_upper
+
+```
+
+## Two-Sample t-test Example
+
+```{r}
+ayurveda <- c(2, 3, 0, 5, 5, 0, 0, 1, 7)  # n = 9
+allopathy <- c(3, 4, 0, 6, 1, 2, 4, 1, 2, 0)  # n = 10
+
+# Two-sample t-test (Welch's t-test, default in R)
+t.test(ayurveda, allopathy, alternative = "two.sided")
+```
+
+## Sampling Distribution of the Difference in Means
+
+```{r}
+set.seed(123)
+
+# Assume these are the true population parameters
+mu_A <- 5   # mean sick days Ayurvedic
+sd_A <- 2
+mu_L <- 7   # mean sick days Allopathic
+sd_L <- 2
+
+n_A <- 10
+n_L <- 10
+
+# Simulation: Repeat sampling many times
+sim_results <- map_dfr(1:5000, ~{
+  sample_A <- rnorm(n_A, mu_A, sd_A)
+  sample_L <- rnorm(n_L, mu_L, sd_L)
+  tibble(
+    mean_A = mean(sample_A),
+    mean_L = mean(sample_L),
+    diff = mean(sample_A) - mean(sample_L)
+  )
+})
+
+# Plot
+library(patchwork)
+
+p1 <- sim_results %>%
+  ggplot(aes(x = mean_A)) +
+  geom_histogram(bins = 30, color = "white") +
+  labs(title = "Population A (Ayurvedic)", x = "Sample mean sick days")
+
+p2 <- sim_results %>%
+  ggplot(aes(x = mean_L)) +
+  geom_histogram(bins = 30, color = "white") +
+  labs(title = "Population L (Allopathic)", x = "Sample mean sick days")
+
+p3 <- sim_results %>%
+  ggplot(aes(x = diff)) +
+  geom_histogram(bins = 30, color = "white") +
+  labs(title = "Sampling distribution of difference in means",
+       x = "Difference in means (Ayurvedic - Allopathic)")
+
+(p1 | p2) / p3
+```
+
+## 
