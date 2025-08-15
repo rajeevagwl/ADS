@@ -157,6 +157,19 @@ CI_lower; CI_upper
 ayurveda <- c(2, 3, 0, 5, 5, 0, 0, 1, 7)  # n = 9
 allopathy <- c(3, 4, 0, 6, 1, 2, 4, 1, 2, 0)  # n = 10
 
+# Combine into a data frame for plotting
+sick_days <- tibble(
+  Group = rep(c("Ayurveda", "Allopathy"), times = c(length(ayurveda), length(allopathy))),
+  SickDays = c(ayurveda, allopathy)
+)
+
+# Side-by-side boxplots
+ggplot(sick_days, aes(x = Group, y = SickDays)) +
+  geom_boxplot(fill = "gray80", color = "black") +
+  labs(title = "Sick Days Over 3 Months by Treatment Group",
+       y = "Number of Sick Days", x = "Group") +
+  theme_bw()
+
 # Two-sample t-test (Welch's t-test, default in R)
 t.test(ayurveda, allopathy, alternative = "two.sided")
 ```
