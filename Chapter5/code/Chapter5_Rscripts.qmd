@@ -153,7 +153,7 @@ pwr.t.test(d = 0.5,       # Effect size (Cohen's d)
            power = 0.8,   # Desired power (80%)
            sig.level = 0.05,  # Significance level (alpha)
            type = "two.sample",
-           alternative = "two.sided")
+           alternative = "greater")
 ```
 
 **Exercise 5.4**
@@ -186,7 +186,7 @@ effect_sizes <- seq(0, 1.5, by = 0.05)  # range of effect sizes (Cohen's d)
 
 # Calculate power for each effect size
 powers <- sapply(effect_sizes, function(d) {
-  pwr.t.test(n = n, d = d, sig.level = alpha, type = "two.sample", alternative = "two.sided")$power
+  pwr.t.test(n = n, d = d, sig.level = alpha, type = "two.sample", alternative = "greater")$power
 })
 
 # Plot the power curve
@@ -197,7 +197,7 @@ plot(effect_sizes, powers, type = "l", lwd = 2,
 abline(h = 0.8, col = "red", lty = 2)  # typical power threshold line
 ```
 
-## **End-Of-Chapter Exercises** 
+## **End-Of-Chapter Exercises**
 
 **Exercise 5 R Code**
 
