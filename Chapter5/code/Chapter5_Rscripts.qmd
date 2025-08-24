@@ -145,6 +145,53 @@ table(systematic_sample$signup_day)
 
 ```
 
+**Exercise 5.3**
+
+```{r}
+set.seed(123)
+
+# Parameters
+mu_null <- 0   # mean difference under H0
+delta  <- 5   # true effect size under H1
+sd <- 10       # population standard deviation
+alpha <- 0.05  # significance level
+n_values <- c(20, 50, 100)   # different sample sizes
+
+# Generate data for each n
+df <- map_dfr(n_values, function(n) {
+  se <- sd / sqrt(n)
+  
+  # Simulate distributions
+  null_samples <- rnorm(1000, mean = mu_null, sd = se)
+  alt_samples  <- rnorm(1000, mean = delta, sd = se)
+  
+  tibble(
+    t_value = c(null_samples, alt_samples),
+    Hypothesis = rep(c("Null", "Alternative"), each = 1000),
+    SampleSize = paste0("n = ", n),
+    cutoff = qnorm(1 - alpha, mean = mu_null, sd = se)
+  )
+})
+
+# Reorder SampleSize factor levels
+df <- df %>%
+  mutate(SampleSize = factor(SampleSize, levels = paste0("n = ", sort(n_values))))
+
+# Plot with cutoff line
+df %>%
+  ggplot(aes(x = t_value, fill = Hypothesis)) +
+  geom_density(alpha = 0.4) +
+  geom_vline(aes(xintercept = cutoff), linetype = "dashed") +
+  facet_wrap(~ SampleSize, scales = "free_y") +
+  scale_fill_manual(values = c("Null" = "gray60", "Alternative" = "gray30")) +
+  labs(
+    title = "Effect of Sample Size on Power",
+    x = "Sample Mean Difference",
+    y = "Density"
+  ) + theme_bw()
+
+```
+
 ## Power Analysis
 
 ```{r}
