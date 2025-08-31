@@ -1,0 +1,99 @@
+---
+title: "Chapter 10"
+format: html
+editor: visual
+---
+
+## Load Libraries and Data
+
+```{r}
+library(tidyverse)
+
+
+```
+
+## Q-Q Plot
+
+```{r}
+ayurveda <- c(2, 3, 0, 5, 5, 0, 0, 1, 7)  # n = 9
+allopathy <- c(3, 4, 0, 6, 1, 2, 4, 1, 2, 0)  # n = 10
+
+# Combine into a data frame for plotting
+sick_days <- tibble(Group = rep(c("Ayurveda", "Allopathy"), 
+             times = c(length(ayurveda), length(allopathy))),
+                    SickDays = c(ayurveda, allopathy))
+
+# QQ plots for each group
+sick_days %>%
+  ggplot(aes(sample = SickDays)) +
+  stat_qq() + stat_qq_line(color = "gray20") +
+  facet_wrap(~Group) +
+  labs(title = "QQ Plots of Sick Days by Group") +
+  theme_bw()
+
+```
+
+```         
+```
+
+## Residual Plot
+
+```{r}
+# Calculate residuals from group means
+sick_days_resid <- sick_days %>%
+  group_by(Group) %>%
+  mutate(Residual = SickDays - mean(SickDays))
+
+# Plot residuals vs fitted (group means)
+sick_days_resid %>%
+  ggplot(aes(x = Group, y = Residual, shape = Group)) +
+  geom_jitter(width = 0.2, size = 2, alpha = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(title = "Residual Plot by Group",
+       x = "Group", y = "Residuals") +
+  theme_bw()
+```
+
+## Shapiro-Wilk Test for Normality
+
+```{r}
+# Test each group separately
+sick_days %>%
+  group_by(Group) %>%
+  summarise(shapiro_p = shapiro.test(SickDays)$p.value)
+
+```
+
+## Levene's Test for Homogeneity of Variances
+
+```{r warning = F}
+library(car)
+
+leveneTest(SickDays ~ Group, data = sick_days)
+
+```
+
+## Nonparametric Alternatives
+
+```{r}
+# Wilcoxon rank-sum test (Mann–Whitney U)
+wilcox.test(ayurveda, allopathy, alternative = "two.sided", exact = TRUE)
+
+# Paired Wilcoxon signed-rank test
+wilcox.test(before, after, paired = TRUE, alternative = "greater")
+
+# One-sample version: test if median differs from 120
+wilcox.test(bp, mu = 120, alternative = "greater")
+
+```
+
+## End-of-Chapter Exercises
+
+### Q8.
+
+```{r}
+# Simulated data
+ayurveda <- c(rpois(16, lambda = 1), 7, 8, 9, 10)
+allopathy <- c(rpois(17, lambda = 2), 8, 9, 12)
+
+```
