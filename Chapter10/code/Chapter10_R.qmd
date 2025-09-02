@@ -75,15 +75,18 @@ leveneTest(SickDays ~ Group, data = sick_days)
 
 ## Nonparametric Alternatives
 
-```{r}
+```{r warning = F}
 # Wilcoxon rank-sum test (Mann–Whitney U)
-wilcox.test(ayurveda, allopathy, alternative = "two.sided", exact = TRUE)
+wilcox.test(ayurveda, allopathy, alternative = "two.sided", exact = TRUE, conf.int = TRUE)
 
 # Paired Wilcoxon signed-rank test
-wilcox.test(before, after, paired = TRUE, alternative = "greater")
+before <- c(125, 122, 130, 128, 124, 127, 126, 129, 131, 128)
+after  <- c(124, 125, 124, 127, 126, 126, 121, 123, 132, 124)
+wilcox.test(before, after, paired = TRUE, alternative = "greater", conf.int = TRUE)
 
 # One-sample version: test if median differs from 120
-wilcox.test(bp, mu = 120, alternative = "greater")
+bp <- c(125, 122, 130, 128, 124, 127, 126, 129, 131, 128)
+wilcox.test(bp, mu = 120, alternative = "greater", conf.int = TRUE)
 
 ```
 
