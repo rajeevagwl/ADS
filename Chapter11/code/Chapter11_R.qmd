@@ -1,0 +1,236 @@
+---
+title: "Chapter 11"
+format: html
+editor: visual
+---
+
+## Load Libraries and Data
+
+```{r}
+library(tidyverse)
+library(car)
+library(FSA)
+library(lme4)
+library(lmerTest)  # gives p-values
+
+df <- read_csv("../data/drone_performance.csv")
+
+```
+
+## Visualize the F-distribution
+
+```{r}
+# Create sequence of x-values
+x_vals <- seq(0, 6, length.out = 1000)
+
+# Create tibble with three F-distributions (different dfs)
+f_df <- tibble(x = rep(x_vals, 3),
+  distribution = rep(c("F(2, 10)", "F(3, 20)", "F(5, 100)"), each = length(x_vals)),
+  density = c(df(x_vals, df1 = 2, df2 = 10),
+              df(x_vals, df1 = 3, df2 = 20),
+              df(x_vals, df1 = 5, df2 = 100)))
+
+# Plot
+ggplot(f_df, aes(x = x, y = density, linetype = distribution)) +
+  scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
+  geom_line() +
+  labs(title = "Examples of F-distributions",
+    subtitle = "The shape depends on numerator and denominator degrees of freedom",
+    x = "F-statistic",
+    y = "Density"
+  ) + theme_bw()
+  
+
+```
+
+```         
+```
+
+## Check Assumptions
+
+```{r}
+# Side-by-side boxplots
+df %>%
+  ggplot(aes(x = Drone, y = Target_Accuracy)) +
+  geom_boxplot(fill = "gray80", color = "black") +
+  labs(title = "Target Accuracy by Drone type",
+       y = "Target Accuracy", x = "Drone") +
+  theme_bw()
+
+# QQ plots for each group
+df %>%
+  ggplot(aes(sample = Target_Accuracy)) +
+  stat_qq() + stat_qq_line(color = "gray20") +
+  facet_wrap(~Drone) +
+  labs(title = "QQ Plots of Target Accuracy by Drone type") +
+  theme_bw()
+
+# Calculate residuals from group means
+accuracy_resid <- df %>%
+  group_by(Drone) %>%
+  mutate(Residual = Target_Accuracy - mean(Target_Accuracy))
+
+# Plot residuals vs fitted (group means)
+accuracy_resid %>%
+  ggplot(aes(x = Drone, y = Residual, shape = Drone)) +
+  geom_jitter(width = 0.2, size = 2, alpha = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(title = "Residual Plot by Drone type",
+       x = "Drone", y = "Residuals") +
+  theme_bw()
+
+# Shapiro-Wilk Test for Normality
+df %>%
+  group_by(Drone) %>%
+  summarise(shapiro_p = shapiro.test(Target_Accuracy)$p.value)
+
+# Levene's test for Homogeneity of Variances
+leveneTest(Target_Accuracy ~ Drone, data = df)
+
+```
+
+## F-test
+
+```{r}
+# Parameters
+alpha <- 0.05
+k <- n_distinct(df$Drone)      # number of groups
+N <- nrow(df)                  # total sample size
+
+# Compute group and overall means
+group_stats <- df %>%
+  group_by(Drone) %>%
+  summarise(n = n(), mean_acc = mean(Target_Accuracy), .groups = "drop")
+
+overall_mean <- mean(df$Target_Accuracy)
+
+# Compute sums of squares
+SSB <- sum(group_stats$n * (group_stats$mean_acc - overall_mean)^2)
+SSW <- df %>%
+  group_by(Drone) %>%
+  summarise(ss = sum((Target_Accuracy - mean(Target_Accuracy))^2),
+            .groups = "drop") %>%
+  summarise(total = sum(ss)) %>%
+  pull(total)
+
+# Step 3: Compute mean squares and F-statistic
+MSB <- SSB / (k - 1)
+MSW <- SSW / (N - k)
+F_stat <- MSB / MSW
+
+# Method 1: Critical value approach
+df1 <- k - 1
+df2 <- N - k
+F_crit <- qf(1 - alpha, df1, df2)
+ifelse(F_stat > F_crit, "Reject H0", "Fail to Reject H0")
+
+# Method 2: p-value approach
+p_value <- pf(F_stat, df1, df2, lower.tail = FALSE)
+ifelse(p_value < alpha, "Reject H0", "Fail to Reject H0")
+
+# One-way ANOVA (F-test)
+fit <- lm(Target_Accuracy ~ Drone, data = df)
+anova(fit)
+
+```
+
+## Exercise 11.1
+
+```{r}
+# Fit ANOVA model
+fit <- lm(Target_Accuracy ~ Drone, data = df)
+anova_table <- anova(fit)
+
+# Extract F-statistic and degrees of freedom
+F_stat <- anova_table$`F value`[1]
+df1 <- anova_table$Df[1]
+df2 <- anova_table$Df[2]
+
+# Create F-distribution curve
+x <- seq(0, 10, length.out = 1000)
+y <- df(x, df1, df2)
+
+# Plot F-distribution
+plot(x, y, type = "l", lwd = 2,
+     main = "F-distribution under H0",
+     xlab = "F value", ylab = "Density")
+
+# Vertical line at observed F-statistic
+abline(v = F_stat, col = "red", lwd = 2)
+
+# Shade p-value region (right tail)
+x_fill <- seq(F_stat, max(x), length.out = 500)
+y_fill <- df(x_fill, df1, df2)
+polygon(c(F_stat, x_fill, max(x_fill)),
+        c(0, y_fill, 0),
+        col = rgb(1, 0, 0, 0.3),
+        border = NA)
+
+```
+
+## Exercise 11.2 Hint
+
+```{r}
+# Kruskal-Wallis test
+kruskal.test(Battery_Degradation ~ Drone, data = df)
+```
+
+## Exercise 11.4
+
+```{r}
+# Ensure Drone is a factor
+df$Drone <- as.factor(df$Drone)
+
+# Fit ANOVA model using aov() (required for TukeyHSD)
+fit <- aov(Target_Accuracy ~ Drone, data = df)
+summary(fit)
+
+# Run Tukey's HSD test for all pairwise comparisons
+tukey_res <- TukeyHSD(fit)
+print(tukey_res)
+
+# Example using pairwise t-tests with Bonferroni and Holm corrections
+pairwise.t.test(df$Target_Accuracy, df$Drone, p.adjust.method = "bonferroni")
+
+pairwise.t.test(df$Target_Accuracy, df$Drone, p.adjust.method = "holm")
+
+
+```
+
+## Post-Hoc Tests for Kruskal-Wallis
+
+```{r}
+
+dunnTest(Battery_Degradation ~ Drone, data = df, method = "bonferroni")
+
+pairwise.wilcox.test(df$Battery_Degradation, df$Drone, p.adjust.method = "holm")
+
+```
+
+## Two-Way ANOVA
+
+```{r}
+# Fit two-way ANOVA model
+fit2 <- lm(Target_Accuracy ~ Drone * Wind_Condition, data = df)
+anova(fit2)
+
+interaction.plot(df$Wind_Condition, df$Drone, df$Target_Accuracy,
+                 xlab = "Wind Condition", ylab = "Mean Target Accuracy",
+                 trace.label = "Drone")
+
+```
+
+## Mixed ANOVA
+
+```{r}
+# Fit the mixed-effects model
+fit3 <- lmer(Target_Accuracy ~ Drone + (1 | Wind_Condition), data = df)
+anova(fit3)
+
+```
+
+## Exercise 11.5
+
+```{r}
+df2 <- read_csv("../data/drone_performance_ex11_5.csv")
+```
