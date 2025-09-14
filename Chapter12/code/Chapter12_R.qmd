@@ -1,0 +1,126 @@
+---
+title: "Chapter 12"
+format: html
+editor: visual
+---
+
+## Load Libraries and Data
+
+```{r}
+library(tidyverse)
+
+```
+
+## Perform Chi-square Test
+
+```{r}
+# Construct contingency table
+star_data <- matrix(c(90, 60,
+                      110, 40,
+                      30, 120),
+                    nrow = 3, byrow = TRUE)
+colnames(star_data) <- c("Supernova", "No_Supernova")
+rownames(star_data) <- c("Blue_Supergiant", "Red_Supergiant", "Wolf_Rayet")
+star_table <- as.table(star_data)
+
+# Chi-square test
+chisq.test(star_table)
+
+```
+
+## Visualize the Chi-square Distribution
+
+```{r warning=FALSE}
+set.seed(123)
+d_f <- 2 # Degrees of freedom
+
+# Simulate 10,000 chi-square values with df = 2
+sim_chisq <- tibble(
+  value = rchisq(10000, df = d_f)
+)
+
+# Plot histogram and density curve
+sim_chisq %>%
+  ggplot(aes(x = value)) +
+  geom_histogram(aes(y = ..density..), bins = 40, fill = "gray70", color = "white") +
+  stat_function(fun = dchisq, args = list(df = d_f), color = "black") +
+  labs(
+    title = paste("Simulated Chi-Square Distribution (df =", d_f, ")"),
+    x = expression(chi^2),
+    y = "Density"
+  ) + theme_bw()
+```
+
+## Visualize p-value
+
+```{r}
+obs_stat = 92.49   #Observed test statistic
+
+# Calculate exact p-value
+p_value <- pchisq(obs_stat, df = 2, lower.tail = FALSE)
+p_value
+
+# Shade the rejection region
+sim_chisq %>%
+  ggplot(aes(x = value)) +
+  stat_function(fun = dchisq, args = list(df = 2), color = "red", size = 1) +
+  geom_area(stat = "function", fun = dchisq,
+            args = list(df = 2),
+            xlim = c(obs_stat, max(sim_chisq$value)),
+            fill = "orange", alpha = 0.4) +
+  geom_vline(xintercept = obs_stat, color = "darkgreen", size = 1.2, linetype = "dashed") +
+  labs(title = paste0("Chi-Square Distribution with df=2, p-value ≈ ", signif(p_value, 3)),
+       x = expression(chi^2), y = "Density") + theme_bw()
+
+```
+
+## Pairwise Comparison (Bonferroni)
+
+```{r}
+# Supernova counts and totals for each group
+successes <- c(90, 110, 30)       # supernova outcomes
+totals    <- c(150, 150, 150)     # total stars
+
+# Pairwise proportion tests with Bonferroni correction
+pairwise.prop.test(successes, totals, p.adjust.method = "bonferroni")
+
+```
+
+## Visual Inspection
+
+```{r}
+mosaicplot(star_data, color = TRUE, main = "Supernova Outcomes by Star Type")
+
+```
+
+## Fisher’s Exact Test
+
+```{r}
+# Contingency table
+small_star_data <- matrix(c(3, 2,
+                            0, 5),
+                          nrow = 2, byrow = TRUE)
+rownames(small_star_data) <- c("Blue_Supergiant", "Wolf_Rayet")
+colnames(small_star_data) <- c("Supernova", "No_Supernova")
+
+# Fisher's Exact Test
+fisher.test(small_star_data)
+
+```
+
+## End-of-Chapter Exercise
+
+### Q6. Hint
+
+```{r}
+drone_data <- read_csv("../data/drone_performance.csv") 
+
+# Contingency table of Drone vs Latency
+latency_table <- table(drone_data$Drone, drone_data$Latency)
+latency_table
+
+# Chi-square test
+chisq_test <- chisq.test(latency_table)
+chisq_test
+
+```
