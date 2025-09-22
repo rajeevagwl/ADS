@@ -1,0 +1,85 @@
+---
+title: "Chapter 13"
+format: html
+editor: visual
+---
+
+## Load Libraries and Data
+
+```{r}
+library(tidyverse)
+
+```
+
+## Benjamini–Hochberg Procedure
+
+```{r}
+# Read data
+rna <- read_csv("../data/simulated_rnaseq_data.csv")
+
+# Pivot longer: one row per Gene per Sample
+rna_long <- rna %>%
+  pivot_longer(-Gene, names_to = "Sample", values_to = "Expression") %>%
+  mutate(
+    Group = ifelse(str_extract(Sample, "\\d+") %>% as.integer() <= 10,
+                   "Infected", "Healthy"))
+
+# For each gene, run a two-sample t-test
+results <- rna_long %>%
+  group_by(Gene) %>%
+  summarise(test = list(t.test(Expression ~ Group)), .groups = "drop") %>%
+  mutate(p_value = map_dbl(test, ~ .x$p.value))
+
+# Apply BH correction
+results <- results %>%
+  mutate(q_value = p.adjust(p_value, method = "BH"), significant = q_value <= 0.05)
+
+# View Results
+results %>%
+  arrange(q_value) %>%
+  select(Gene, p_value, q_value, significant)
+
+
+```
+
+## Visualize the P-values
+
+### Histogram
+
+```{r}
+results %>%
+  ggplot(aes(x = p_value)) +
+  geom_histogram(binwidth = 0.01, fill = "gray", color = "white") +
+  labs(title = "Histogram of P-values", x = "P-value", y = "Count") +
+  theme_bw()
+```
+
+### Volcano Plot
+
+```{r}
+fc_cutoff <- 1       # log2 fold change threshold
+q_cutoff <- 0.05     # q-value threshold
+
+# Calculate effect size from test results and plot
+results %>%
+  mutate(effect_size = map_dbl(test, ~ diff(.x$estimate))) %>%
+  ggplot(aes(x = effect_size, y = -log10(q_value), 
+             color = q_value <= q_cutoff & abs(effect_size) >= fc_cutoff)) +
+  geom_point(alpha = 0.6) +
+  scale_color_manual(
+    values = c("grey40", "black"),
+    labels = c("Not significant or small effect", "Significant & large effect")
+  ) +
+  geom_vline(xintercept = c(-fc_cutoff, fc_cutoff), linetype = "dashed") +
+  geom_hline(yintercept = -log10(q_cutoff), linetype = "dashed") +
+  labs(
+    title = "Volcano Plot",
+    x = "Effect Size (Mean Difference)",
+    y = "-log10(q-value)",
+    color = "Significance/Effect"
+  ) +
+  theme_bw() + theme(legend.position = "top")
+
+```
+
+## 
