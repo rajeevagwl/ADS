@@ -1,0 +1,115 @@
+---
+title: "Chapter 14"
+format: html
+editor: visual
+---
+
+## Load Libraries and Data
+
+```{r}
+library(tidyverse)
+library(rcompanion)
+library(ppcor)
+
+df <- read_csv("../data/floriculture_data.csv") 
+
+
+```
+
+## Pearson Correlation
+
+```{r warning = FALSE}
+cor.test(df$rainfall_mm, df$yield_kg, method = "pearson")
+
+df %>%
+  ggplot(aes(x = rainfall_mm, y = yield_kg)) +
+  geom_point(alpha = 0.6, color = "gray50") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +
+  labs(
+    title = "Rainfall vs. Flower Yield",
+    subtitle = paste("Pearson correlation = 0.79 (p < 0.001)"),
+    x = "Rainfall during season (mm)",
+    y = "Yield (kg per hectare)"
+  ) + theme_bw()
+
+```
+
+### Correlation by Flower Type
+
+```{r}
+df %>%
+  group_by(flower_type) %>%
+  summarise(correlation = cor(rainfall_mm, yield_kg, method = "pearson")) %>%
+  arrange(desc(correlation))
+```
+
+## Point-Biserial Correlation
+
+```{r}
+cor.test(df$festival_season, df$market_price, method = "pearson")
+
+df %>%
+  ggplot(aes(x = as.factor(festival_season), y = market_price, fill = as.factor(festival_season))) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("0" = "gray50", "1" = "gray80")) +
+  labs(
+    title = "Flower Prices During vs. Outside Festival Season",
+    subtitle = paste("Point-biserial correlation = 0.29 (p < 0.001)"),
+    x = "Festival Season (0 = No, 1 = Yes)",
+    y = "Market Price (INR per kg)"
+  ) + theme_bw()
+
+```
+
+## Spearman Correlation
+
+```{r warning = FALSE}
+cor.test(df$fertilizer_kg, df$color_brightness, method = "spearman")
+
+df %>%
+  ggplot(aes(x = fertilizer_kg, y = color_brightness)) +
+  geom_point(alpha = 0.6, color = "gray40") +
+  geom_smooth(method = "loess", se = FALSE, color = "black") +
+  labs(
+    title = "Fertilizer vs. Bloom Brightness",
+    subtitle = paste("Spearman correlation = 0.36 (p < 0.001)"),
+    x = "Fertilizer Used (kg per hectare)",
+    y = "Color Brightness (1–5 scale)"
+  ) + theme_bw()
+
+```
+
+## Kendall's Correlation
+
+```{r}
+cor.test(df$fertilizer_kg, df$color_brightness, method = "kendall")
+```
+
+## Phi Coefficient
+
+```{r}
+# Association between festival season and export status
+tbl <- table(df$festival_season, df$exported)
+chisq.test(tbl)
+phi <- sqrt(chisq.test(tbl)$statistic / sum(tbl))
+phi
+```
+
+## Cramer's V
+
+```{r}
+df <- df %>%
+  mutate(brightness_category = case_when(color_brightness <= 3 ~ "Low",
+                                         color_brightness >= 4 ~ "High"))
+tbl <- table(df$flower_type, df$brightness_category)
+chisq.test(tbl)
+cramerV(tbl)
+
+```
+
+## Partial Correlation
+
+```{r}
+# Compute partial correlation controlling for temperature
+pcor.test(df$rainfall_mm, df$yield_kg, df$avg_temp, method = "pearson")
+```
